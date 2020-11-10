@@ -3,7 +3,7 @@ import * as LWC from 'lightweight-charts';
 
 import { TCandle, COLOR } from './';
 
-export class Chart {
+export class ChartOld {
   widht: number;
   height: number;
   chart: LWC.IChartApi;
@@ -42,16 +42,17 @@ export class Chart {
     });
   }
 
-  addCandlestickSeries() {
-    return new CandlestickSeries(this.chart);
+  addOHLCSeries() {
+    return new OHLCSeries(this.chart);
   }
 }
 
-class CandlestickSeries {
-  candlestick: LWC.ISeriesApi<'Candlestick'>;
+export class OHLCSeries {
+  ohlcSeries: LWC.ISeriesApi<'Candlestick'>;
+  candlesData: LWC.BarData[] = [];
 
   constructor(chart: LWC.IChartApi) {
-    this.candlestick = chart.addCandlestickSeries({
+    this.ohlcSeries = chart.addCandlestickSeries({
       upColor: COLOR.buy,
       downColor: COLOR.sell,
       borderDownColor: COLOR.sell,
@@ -62,17 +63,35 @@ class CandlestickSeries {
   }
 
   setData(candlesData: TCandle[]) {
-    this.candlestick.setData(this.convertData(candlesData));
+    this.candlesData = candlesData.map(this.convertData);
+    this.ohlcSeries.setData(this.candlesData);
   }
 
-  private convertData(candlesData: TCandle[]): LWC.BarData[] {
-    // @ts-ignore
-    return candlesData.map(({ timestamp, open, close, low, high }) => ({
+  updateLastCandle(newCandle: TCandle) {
+    this.candlesData.pop();
+    this.candlesData.push(this.convertData(newCandle));
+    this.ohlcSeries.update(this.convertData(newCandle));
+  }
+
+  addLastCandle(newCandle: TCandle) {
+    this.candlesData.push(this.convertData(newCandle));
+    this.ohlcSeries.update(this.convertData(newCandle));
+  }
+
+  private convertData({
+    timestamp,
+    open,
+    close,
+    low,
+    high,
+  }: TCandle): LWC.BarData {
+    return {
+      // @ts-ignore
       time: timestamp,
       open,
       close,
       low,
       high,
-    }));
+    };
   }
 }

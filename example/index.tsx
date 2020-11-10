@@ -1,10 +1,8 @@
 import 'react-app-polyfill/ie11';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { init, tview } from '../dist';
+import { Chart, ChartOld, OHLCSeries } from '../dist';
 import { OHLC, OHLC2 } from './data';
-
-const { Chart } = tview;
 
 const App = () => {
   return (
@@ -30,7 +28,7 @@ const Chart1 = () => {
 
   React.useEffect(() => {
     if (!canvasRef.current) return;
-    init(canvasRef.current, OHLC);
+    new Chart(canvasRef.current, OHLC);
   }, [canvasRef.current]);
 
   return (
@@ -39,7 +37,7 @@ const Chart1 = () => {
       id="webgl-canvas"
       width={WIDTH}
       height={HEIGHT}
-      style={{ borderRadius: '10px', marginBottom: '10px' }}
+      style={{ marginBottom: '20px' }}
     >
       no canvas
     </canvas>
@@ -47,20 +45,36 @@ const Chart1 = () => {
 };
 
 const Chart2 = () => {
-  const chartRef = React.useRef<any>();
+  const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const chartRef = React.useRef<ChartOld>();
+  const ohlcSeriesRef = React.useRef<OHLCSeries>();
+
+  const indexRef = React.useRef<number>(Math.round(OHLC2.length / 2));
 
   React.useEffect(() => {
-    if (!chartRef.current) return;
-    const chart = new Chart(chartRef.current);
-    const ohlcSeries = chart.addCandlestickSeries();
-    ohlcSeries.setData(OHLC2);
-  }, [chartRef.current]);
+    const interval = setInterval(() => {
+      if (!ohlcSeriesRef.current) return;
+      if (indexRef.current >= OHLC2.length) {
+        clearInterval(interval);
+        return;
+      }
+      ohlcSeriesRef.current.addLastCandle(OHLC2[indexRef.current]);
+      indexRef.current++;
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  React.useEffect(() => {
+    if (!chartContainerRef.current) return;
+    chartRef.current = new ChartOld(chartContainerRef.current);
+    ohlcSeriesRef.current = chartRef.current.addOHLCSeries();
+    ohlcSeriesRef.current.setData(OHLC2.slice(0, indexRef.current));
+  }, [chartContainerRef.current]);
 
   return (
     <div
-      ref={chartRef}
+      ref={chartContainerRef}
       style={{
-        borderRadius: '10px',
         width: WIDTH,
         height: HEIGHT,
       }}
