@@ -1,6 +1,6 @@
 import type { TCandle } from '../dist';
 
-export const OHLC: TCandle[] = [
+export const rawOhlc = [
   {
     close: 13652.5,
     closeTime: '2020-10-31T21:18:36.745245Z',
@@ -343,10 +343,20 @@ export const OHLC: TCandle[] = [
     openTime: '2020-10-31T21:54:36.74523Z',
     to: 1604181276,
   },
-].map(({ open, close, high, low }, i) => ({
+];
+
+export const OHLC: TCandle[] = rawOhlc.map(({ open, close, high, low }, i) => ({
   open,
   close,
   high,
   low,
   timestamp: (i + 1) * 5,
-}));
+}))
+
+export const OHLC2: TCandle[] = rawOhlc.map(({ openTime, open, close, high, low }, i) => ({
+  open,
+  close,
+  high,
+  low,
+  timestamp: openTime,
+}))

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export type TCandle = {
-  timestamp: number;
+  timestamp: number | string;
   open: number;
   high: number;
   low: number;
@@ -129,6 +129,7 @@ function makeCandle(
   const bodyH = Math.abs(open - close) / (price.max - price.min);
   const wickH = Math.abs(low - high) / (price.max - price.min);
 
+  if (typeof timestamp !== "number") throw new Error('Boo!')
   const deltaX = (timestamp - time.step) / (time.max - time.min);
   const iY = 1 / (price.max - price.min);
   const bodyDeltaY =
@@ -192,7 +193,8 @@ function getOhlcRangeStep(ohlc: TCandle[]) {
   ohlc.forEach(c => {
     if (c.high > price.max) price.max = c.high;
     if (c.low < price.min) price.min = c.low;
-
+    
+    if (typeof c.timestamp !== "number") throw new Error('Boo!')
     if (c.timestamp > time.max) time.max = c.timestamp;
     if (c.timestamp < time.min) time.min = c.timestamp;
   });
@@ -202,3 +204,5 @@ function getOhlcRangeStep(ohlc: TCandle[]) {
   console.log('scale | time', time);
   return { price, time };
 }
+
+export * as tview from './tview';
