@@ -2,7 +2,9 @@ import 'react-app-polyfill/ie11';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { init, tview } from '../dist';
-import { OHLC } from './data';
+import { OHLC, OHLC2 } from './data';
+
+const { Chart } = tview;
 
 const App = () => {
   return (
@@ -13,7 +15,7 @@ const App = () => {
       }}
     >
       <div>
-        <Chart />
+        <Chart1 />
         <Chart2 />
       </div>
     </div>
@@ -23,7 +25,7 @@ const App = () => {
 const WIDTH = 640;
 const HEIGHT = 480;
 
-const Chart = () => {
+const Chart1 = () => {
   const canvasRef = React.useRef<any>();
 
   React.useEffect(() => {
@@ -35,8 +37,8 @@ const Chart = () => {
     <canvas
       ref={canvasRef}
       id="webgl-canvas"
-      width="640"
-      height="480"
+      width={WIDTH}
+      height={HEIGHT}
       style={{ borderRadius: '10px', marginBottom: '10px' }}
     >
       no canvas
@@ -49,7 +51,9 @@ const Chart2 = () => {
 
   React.useEffect(() => {
     if (!chartRef.current) return;
-    tview.createChart(chartRef.current, OHLC);
+    const chart = new Chart(chartRef.current);
+    const ohlcSeries = chart.addCandlestickSeries();
+    ohlcSeries.setData(OHLC2);
   }, [chartRef.current]);
 
   return (
@@ -57,7 +61,6 @@ const Chart2 = () => {
       ref={chartRef}
       style={{
         borderRadius: '10px',
-        background: '#444444',
         width: WIDTH,
         height: HEIGHT,
       }}

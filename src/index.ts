@@ -19,13 +19,21 @@ type TScale = {
   time: { min: number; max: number; step: number; count: number };
 };
 
+export const COLOR = {
+  bg: "#141414",
+  grid: "#252525", // 0x1d1d1d | 010101 | 0x393939
+  text: "#adadad",
+  buy: "#22833d",
+  sell:  "#b82e40",
+}
+
 export function init(canvas: HTMLCanvasElement, candlesData: TCandle[]) {
   const { height, width } = canvas;
   const scale = getOhlcRangeStep(candlesData);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(width, height);
-  renderer.setClearColor(0x141414, 1.0);
+  renderer.setClearColor(COLOR.bg, 1.0);
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1000);
   camera.position.z = 1;
@@ -56,15 +64,14 @@ export function init(canvas: HTMLCanvasElement, candlesData: TCandle[]) {
 // helper functions
 /////////////////////
 function getCandleParts(): TCandleParts {
-  const [buy, sell] = [0x22833d, 0xb82e40];
   const material = {
     mesh: {
-      buy: new THREE.MeshBasicMaterial({ color: buy }),
-      sell: new THREE.MeshBasicMaterial({ color: sell }),
+      buy: new THREE.MeshBasicMaterial({ color: COLOR.buy }),
+      sell: new THREE.MeshBasicMaterial({ color: COLOR.sell }),
     },
     line: {
-      buy: new THREE.LineBasicMaterial({ color: buy, linewidth: 2 }),
-      sell: new THREE.LineBasicMaterial({ color: sell, linewidth: 2 }),
+      buy: new THREE.LineBasicMaterial({ color: COLOR.buy, linewidth: 2 }),
+      sell: new THREE.LineBasicMaterial({ color: COLOR.sell, linewidth: 2 }),
     },
   };
 
@@ -160,9 +167,9 @@ function makeGrid({ time, price }: TScale) {
   const stepY = price.step / (price.max - price.min);
 
   const gridLineMaterial = new THREE.LineBasicMaterial({
-    color: 0x252525,
+    color: COLOR.grid,
     linewidth: 0.5,
-  }); // 0x1d1d1d | 010101 | 0x393939
+  }); 
 
   function makeBaseLine(x1: number, y1: number, x2: number, y2: number) {
     const path = new THREE.Path();

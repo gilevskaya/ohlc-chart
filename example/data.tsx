@@ -358,5 +358,5 @@ export const OHLC2: TCandle[] = rawOhlc.map(({ openTime, open, close, high, low 
   close,
   high,
   low,
-  timestamp: openTime,
+  timestamp: new Date(openTime).getTime() / 1000,
 }))

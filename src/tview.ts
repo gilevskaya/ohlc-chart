@@ -1,65 +1,78 @@
 // @ts-ignore
 import * as LWC from 'lightweight-charts';
 
-import { TCandle } from './';
+import { TCandle, COLOR } from './';
 
-export function createChart(
-  canvasWrapDiv: HTMLDivElement,
-  candlesData: TCandle[]
-) {
-  const { clientWidth: width, clientHeight: height } = canvasWrapDiv;
-  const chart = LWC.createChart(canvasWrapDiv, {
-    width,
-    height,
-    crosshair: {
-      mode: LWC.CrosshairMode.Normal,
-    },
-    layout: {
-      backgroundColor: '#1a202c',
-      textColor: '#edf2f7',
-    },
-    grid: {
-      vertLines: {
-        color: '#2d3748',
+export class Chart {
+  widht: number;
+  height: number;
+  chart: LWC.IChartApi;
+
+  constructor(element: HTMLDivElement) {
+    [this.widht, this.height] = [element.clientWidth, element.clientHeight];
+
+    this.chart = LWC.createChart(element, {
+      width: this.widht,
+      height: this.height,
+      crosshair: {
+        mode: LWC.CrosshairMode.Normal,
       },
-      horzLines: {
-        color: '#2d3748',
+      layout: {
+        backgroundColor: COLOR.bg,
+        textColor: COLOR.text,
       },
-    },
-    timeScale: {
-      // rightOffset: 12,
-      // barSpacing: 3,
-      // fixLeftEdge: true,
-      rightBarStaysOnScroll: true,
-      // borderVisible: false,
-      // borderColor: "#fff000",
-      visible: true,
-      timeVisible: true,
-      secondsVisible: true,
-    },
-  });
+      grid: {
+        vertLines: {
+          color: COLOR.grid,
+        },
+        horzLines: {
+          color: COLOR.grid,
+        },
+      },
+      rightPriceScale: {
+        borderColor: COLOR.grid,
+      },
+      timeScale: {
+        borderColor: COLOR.grid,
+        rightBarStaysOnScroll: true,
+        visible: true,
+        timeVisible: true,
+        secondsVisible: true,
+      },
+    });
+  }
 
-  const candleSeries = chart.addCandlestickSeries({
-    upColor: 'green',
-    downColor: 'red',
-    borderDownColor: 'red',
-    borderUpColor: 'green',
-    wickDownColor: 'red',
-    wickUpColor: 'green',
-  });
+  addCandlestickSeries() {
+    return new CandlestickSeries(this.chart);
+  }
+}
 
-  // @ts-ignore
-  const data: LWC.BarData = candlesData.map(
-    ({ timestamp, open, close, low, high }) => ({
+class CandlestickSeries {
+  candlestick: LWC.ISeriesApi<'Candlestick'>;
+
+  constructor(chart: LWC.IChartApi) {
+    this.candlestick = chart.addCandlestickSeries({
+      upColor: COLOR.buy,
+      downColor: COLOR.sell,
+      borderDownColor: COLOR.sell,
+      borderUpColor: COLOR.buy,
+      wickDownColor: COLOR.sell,
+      wickUpColor: COLOR.buy,
+    });
+  }
+
+  setData(candlesData: TCandle[]) {
+    this.candlestick.setData(this.convertData(candlesData));
+  }
+
+  private convertData(candlesData: TCandle[]): LWC.BarData[] {
+    // @ts-ignore
+    return candlesData.map(({ timestamp, open, close, low, high }) => ({
       time: timestamp,
       open,
       close,
       low,
       high,
-    })
-  );
-  // @ts-ignore
-  candleSeries.setData(data);
-
-  console.log('*', candleSeries);
+    }));
+  }
 }
