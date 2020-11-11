@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 
-export type TCandle = {
+export type TChartCandle = {
   timestamp: number | string;
   open: number;
   high: number;
   low: number;
   close: number;
+};
+
+export type TChartOrder = {
+  id: string;
+  size: number; // negarive if sell
+  price: number;
 };
 
 type TCandleParts = {
@@ -25,6 +31,9 @@ export const COLOR = {
   text: '#adadad',
   buy: '#22833d',
   sell: '#b82e40',
+  position: 'blue',
+  orderBuy: '#044516',
+  orderSell: '#641C27',
 };
 
 export class Chart {
@@ -34,7 +43,7 @@ export class Chart {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
 
-  constructor(canvas: HTMLCanvasElement, candlesData: TCandle[]) {
+  constructor(canvas: HTMLCanvasElement, candlesData: TChartCandle[]) {
     const { height, width } = canvas;
     [this.widht, this.height] = [width, height];
 
@@ -59,7 +68,7 @@ export class Chart {
     const candleParts = this.getCandleParts();
     const candlesGroup = new THREE.Group();
     const candles: THREE.Group[] = [];
-    candlesData.forEach((cd: TCandle) => {
+    candlesData.forEach((cd: TChartCandle) => {
       candles.push(this.makeCandle(candleParts, cd, scale));
     });
     candles.forEach(c => candlesGroup.add(c));
@@ -133,7 +142,7 @@ export class Chart {
 
   private makeCandle(
     candleParts: TCandleParts,
-    candleData: TCandle,
+    candleData: TChartCandle,
     { price, time }: TScale
   ): THREE.Group {
     const { body, bodyFlat, wick } = candleParts;
@@ -208,7 +217,7 @@ export class Chart {
     return gridGroup;
   }
 
-  private getOhlcRangeStep(ohlc: TCandle[]) {
+  private getOhlcRangeStep(ohlc: TChartCandle[]) {
     const price = { min: +Infinity, max: -Infinity, step: 10 };
     const time = {
       min: +Infinity,

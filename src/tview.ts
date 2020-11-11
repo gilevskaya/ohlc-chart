@@ -1,7 +1,7 @@
 // @ts-ignore
 import * as LWC from 'lightweight-charts';
 
-import { TCandle, COLOR } from './';
+import { TChartCandle, TChartOrder, COLOR } from './';
 
 export class ChartOld {
   widht: number;
@@ -50,6 +50,8 @@ export class ChartOld {
 export class OHLCSeries {
   ohlcSeries: LWC.ISeriesApi<'Candlestick'>;
   candlesData: LWC.BarData[] = [];
+  postition: LWC.IPriceLine | null = null;
+  orders: Map<string, LWC.IPriceLine> = new Map();
 
   constructor(chart: LWC.IChartApi) {
     this.ohlcSeries = chart.addCandlestickSeries({
@@ -62,20 +64,57 @@ export class OHLCSeries {
     });
   }
 
-  setData(candlesData: TCandle[]) {
+  setData(candlesData: TChartCandle[]) {
     this.candlesData = candlesData.map(this.convertData);
     this.ohlcSeries.setData(this.candlesData);
   }
 
-  updateLastCandle(newCandle: TCandle) {
+  updateLastCandle(newCandle: TChartCandle) {
     this.candlesData.pop();
     this.candlesData.push(this.convertData(newCandle));
     this.ohlcSeries.update(this.convertData(newCandle));
   }
 
-  addLastCandle(newCandle: TCandle) {
+  addLastCandle(newCandle: TChartCandle) {
     this.candlesData.push(this.convertData(newCandle));
     this.ohlcSeries.update(this.convertData(newCandle));
+  }
+
+  setPosition(price: number | null) {
+    if (this.postition) {
+      this.ohlcSeries.removePriceLine(this.postition);
+    }
+    if (price != null) {
+      this.postition = this.ohlcSeries.createPriceLine({
+        price,
+        color: COLOR.position,
+        lineWidth: 1,
+        lineStyle: LWC.LineStyle.Solid,
+        axisLabelVisible: true,
+      });
+    }
+  }
+
+  setOrders(orders: TChartOrder[]) {
+    const updOrders = new Map();
+    orders.forEach(oData => {
+      const { id, price, size } = oData;
+      const existingOrderPL = this.orders.get(id);
+      if (existingOrderPL) {
+        this.ohlcSeries.removePriceLine(existingOrderPL);
+      }
+      updOrders.set(
+        id,
+        this.ohlcSeries.createPriceLine({
+          price,
+          color: size > 0 ? COLOR.orderBuy : COLOR.orderSell,
+          lineWidth: 2,
+          lineStyle: LWC.LineStyle.Dashed,
+          axisLabelVisible: true,
+        })
+      );
+    });
+    this.orders = updOrders;
   }
 
   private convertData({
@@ -84,7 +123,7 @@ export class OHLCSeries {
     close,
     low,
     high,
-  }: TCandle): LWC.BarData {
+  }: TChartCandle): LWC.BarData {
     return {
       // @ts-ignore
       time: timestamp,

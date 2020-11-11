@@ -69,6 +69,25 @@ const Chart2 = () => {
     chartRef.current = new ChartOld(chartContainerRef.current);
     ohlcSeriesRef.current = chartRef.current.addOHLCSeries();
     ohlcSeriesRef.current.setData(OHLC2.slice(0, indexRef.current));
+
+    ohlcSeriesRef.current.setPosition(13665);
+    ohlcSeriesRef.current.setOrders([
+      {
+        id: '200-13650',
+        size: 200,
+        price: 13650,
+      },
+      {
+        id: '200-13643',
+        size: 200,
+        price: 13643,
+      },
+      {
+        id: '200-13675',
+        size: -400,
+        price: 13705,
+      },
+    ]);
   }, [chartContainerRef.current]);
 
   return (

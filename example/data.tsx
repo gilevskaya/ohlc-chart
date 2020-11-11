@@ -1,4 +1,4 @@
-import type { TCandle } from '../dist';
+import type { TChartCandle } from '../dist';
 
 export const rawOhlc = [
   {
@@ -345,7 +345,7 @@ export const rawOhlc = [
   },
 ];
 
-export const OHLC: TCandle[] = rawOhlc.map(({ open, close, high, low }, i) => ({
+export const OHLC: TChartCandle[] = rawOhlc.map(({ open, close, high, low }, i) => ({
   open,
   close,
   high,
@@ -353,7 +353,7 @@ export const OHLC: TCandle[] = rawOhlc.map(({ open, close, high, low }, i) => ({
   timestamp: (i + 1) * 5,
 }))
 
-export const OHLC2: TCandle[] = rawOhlc.map(({ openTime, open, close, high, low }, i) => ({
+export const OHLC2: TChartCandle[] = rawOhlc.map(({ openTime, open, close, high, low }, i) => ({
   open,
   close,
   high,
