@@ -1,4 +1,6 @@
-import { sum } from '../src';
+// import { sum } from '../src';
+
+const sum = (a: number, b: number) => a + b;
 
 describe('blah', () => {
   it('works', () => {
