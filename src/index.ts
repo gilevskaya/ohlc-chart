@@ -1,18 +1,6 @@
 import * as THREE from 'three';
 
-export type TChartCandle = {
-  timestamp: number | string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-};
-
-export type TChartOrder = {
-  id: string;
-  size: number; // negarive if sell
-  price: number;
-};
+import { TChartCandle, COLOR_DEFAULT } from './types';
 
 type TCandleParts = {
   body: { buy: THREE.Mesh; sell: THREE.Mesh };
@@ -23,17 +11,6 @@ type TCandleParts = {
 type TScale = {
   price: { min: number; max: number; step: number };
   time: { min: number; max: number; step: number; count: number };
-};
-
-export const COLOR = {
-  bg: '#141414',
-  grid: '#252525', // 0x1d1d1d | 010101 | 0x393939
-  text: '#adadad',
-  buy: '#22833d',
-  sell: '#b82e40',
-  position: 'blue',
-  orderBuy: '#044516',
-  orderSell: '#641C27',
 };
 
 export class Chart {
@@ -50,7 +27,7 @@ export class Chart {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(width, height);
-    this.renderer.setClearColor(COLOR.bg, 1.0);
+    this.renderer.setClearColor(COLOR_DEFAULT.bg, 1.0);
 
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1000);
     this.camera.position.z = 1;
@@ -81,12 +58,18 @@ export class Chart {
   private getCandleParts(): TCandleParts {
     const material = {
       mesh: {
-        buy: new THREE.MeshBasicMaterial({ color: COLOR.buy }),
-        sell: new THREE.MeshBasicMaterial({ color: COLOR.sell }),
+        buy: new THREE.MeshBasicMaterial({ color: COLOR_DEFAULT.buy }),
+        sell: new THREE.MeshBasicMaterial({ color: COLOR_DEFAULT.sell }),
       },
       line: {
-        buy: new THREE.LineBasicMaterial({ color: COLOR.buy, linewidth: 2 }),
-        sell: new THREE.LineBasicMaterial({ color: COLOR.sell, linewidth: 2 }),
+        buy: new THREE.LineBasicMaterial({
+          color: COLOR_DEFAULT.buy,
+          linewidth: 2,
+        }),
+        sell: new THREE.LineBasicMaterial({
+          color: COLOR_DEFAULT.sell,
+          linewidth: 2,
+        }),
       },
     };
 
@@ -146,7 +129,7 @@ export class Chart {
     { price, time }: TScale
   ): THREE.Group {
     const { body, bodyFlat, wick } = candleParts;
-    const { timestamp, open, high, low, close } = candleData;
+    const { t: timestamp, o: open, h: high, l: low, c: close } = candleData;
     const candleBody = (open > close ? body.sell : body.buy).clone();
     const candleBodyFlat = (open > close
       ? bodyFlat.sell
@@ -189,7 +172,7 @@ export class Chart {
     const stepY = price.step / (price.max - price.min);
 
     const gridLineMaterial = new THREE.LineBasicMaterial({
-      color: COLOR.grid,
+      color: COLOR_DEFAULT.grid,
       linewidth: 0.5,
     });
 
@@ -226,12 +209,12 @@ export class Chart {
       count: ohlc.length,
     };
     ohlc.forEach(c => {
-      if (c.high > price.max) price.max = c.high;
-      if (c.low < price.min) price.min = c.low;
+      if (c.h > price.max) price.max = c.h;
+      if (c.l < price.min) price.min = c.l;
 
-      if (typeof c.timestamp !== 'number') throw new Error('Boo!');
-      if (c.timestamp > time.max) time.max = c.timestamp;
-      if (c.timestamp < time.min) time.min = c.timestamp;
+      if (typeof c.t !== 'number') throw new Error('Boo!');
+      if (c.t > time.max) time.max = c.t;
+      if (c.t < time.min) time.min = c.t;
     });
     price.min = Math.floor(price.min / 10) * 10;
     price.max = Math.ceil(price.max / 10) * 10;
@@ -283,4 +266,7 @@ function c(n: number) {
 //   }
 // }
 
+export const mult = (a: number, b: number) => a * b;
+
 export * from './tview';
+export * from './types';

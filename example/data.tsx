@@ -346,17 +346,17 @@ export const rawOhlc = [
 ];
 
 export const OHLC: TChartCandle[] = rawOhlc.map(({ open, close, high, low }, i) => ({
-  open,
-  close,
-  high,
-  low,
-  timestamp: (i + 1) * 5,
+  o: open,
+  c: close,
+  h: high,
+  l: low,
+  t: (i + 1) * 5,
 }))
 
 export const OHLC2: TChartCandle[] = rawOhlc.map(({ openTime, open, close, high, low }, i) => ({
-  open,
-  close,
-  high,
-  low,
-  timestamp: new Date(openTime).getTime() / 1000,
+  o: open,
+  c: close,
+  h: high,
+  l: low,
+  t: new Date(openTime).getTime() / 1000,
 }))
