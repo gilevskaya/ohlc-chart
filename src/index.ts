@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import { TChartCandle, COLOR_DEFAULT, TColorConfig } from './types';
+import { ChartOld } from './tview';
 
 type TCandleParts = {
   body: { buy: THREE.Mesh; sell: THREE.Mesh };
@@ -281,7 +282,6 @@ class Test {
 }
 export default Test;
 
-import { ChartOld } from './tview';
 export function createChart(
   element: HTMLDivElement,
   colorConfig: Partial<TColorConfig> = {}
