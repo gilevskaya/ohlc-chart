@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-import { TChartCandle, COLOR_DEFAULT } from './types';
+import { TChartCandle, COLOR_DEFAULT, TColorConfig } from './types';
 
 type TCandleParts = {
   body: { buy: THREE.Mesh; sell: THREE.Mesh };
@@ -268,5 +268,23 @@ function c(n: number) {
 
 export const mult = (a: number, b: number) => a * b;
 
-export * from './tview';
 export * from './types';
+
+class Test {
+  constructor() {
+    console.log('making test...');
+  }
+
+  setOhlc() {
+    console.log('setting ohld...');
+  }
+}
+export default Test;
+
+import { ChartOld } from './tview';
+export function createChart(
+  element: HTMLDivElement,
+  colorConfig: Partial<TColorConfig> = {}
+) {
+  return new ChartOld(element, colorConfig);
+}

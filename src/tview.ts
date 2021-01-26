@@ -7,92 +7,17 @@ import {
   COLOR_DEFAULT,
 } from './types';
 
-export function create(element: HTMLDivElement, colorConfig = {}) {
-  if (!element) throw new Error('Chart html element is null');
-  const color = {
-    bg: '#141414',
-    grid: '#252525', // 0x1d1d1d | 010101 | 0x393939
-    text: '#adadad',
-    ...colorConfig,
-  };
-
-  const [width, height] = [element.clientWidth, element.clientHeight];
-  const chart = LWC.createChart(element, {
-    width,
-    height,
-    crosshair: {
-      mode: LWC.CrosshairMode.Normal,
-    },
-    layout: {
-      backgroundColor: color.bg,
-      textColor: color.text,
-    },
-    grid: {
-      vertLines: {
-        color: color.grid,
-      },
-      horzLines: {
-        color: color.grid,
-      },
-    },
-    rightPriceScale: {
-      borderColor: color.grid,
-    },
-    timeScale: {
-      borderColor: color.grid,
-      rightBarStaysOnScroll: true,
-      visible: true,
-      timeVisible: true,
-      secondsVisible: true,
-    },
-  });
-  const series = new Map<string, any>();
-
-  const setOhlcData = (candlesData: TChartCandle[]) => {
-    const ohlcSeries = series.get('ohlc');
-    if (!ohlcSeries) throw new Error('Chart has no ohlc series');
-    const cd = candlesData.map(convertData);
-    ohlcSeries.setData(cd);
-  };
-
-  return {
-    addOhlc: (candlesData: TChartCandle[], colorConfig = {}) => {
-      const colorOhlc = {
-        buy: '#22833d',
-        sell: '#b82e40',
-        ...colorConfig,
-      };
-      const ohlcSeries = chart.addCandlestickSeries({
-        upColor: colorOhlc.buy,
-        downColor: colorOhlc.sell,
-        borderDownColor: colorOhlc.sell,
-        borderUpColor: colorOhlc.buy,
-        wickDownColor: colorOhlc.sell,
-        wickUpColor: colorOhlc.buy,
-      });
-      if (candlesData.length > 0) setOhlcData(candlesData);
-      series.set('ohlc', ohlcSeries);
-    },
-    setOhlcData,
-  };
-}
-
-function convertData({ t, o, c, l, h }: TChartCandle): LWC.BarData {
-  // @ts-ignore
-  return { time: t, open: o, close: c, low: l, high: h };
-}
-
-/////////////////////
-
 export class ChartOld {
   width: number;
   height: number;
   chart: LWC.IChartApi;
   colorConfig: TColorConfig;
   //
-  candles: OhlcSeries | null = null;
-  position: LWC.IPriceLine | null = null;
+  ohlc: LWC.ISeriesApi<'Candlestick'> | null = null;
+  position: { c: LWC.IPriceLine; d: number } | null = null;
   orders: Map<string, { c: LWC.IPriceLine; d: TChartOrder }> = new Map();
+  //
+  priceSelectHandler: null | LWC.MouseEventHandler = null;
 
   constructor(
     element: HTMLDivElement,
@@ -124,6 +49,7 @@ export class ChartOld {
       },
       rightPriceScale: {
         borderColor: this.colorConfig.grid,
+        drawTicks: false,
       },
       timeScale: {
         borderColor: this.colorConfig.grid,
@@ -145,85 +71,71 @@ export class ChartOld {
     ro.observe(element);
   }
 
-  setCandles(data: TChartCandle[]) {
-    if (!this.candles) {
-      this.candles = new OhlcSeries(this, this.colorConfig);
+  setOnPriceSelect(onPriceSelect: null | ((price: number) => void)) {
+    if (this.priceSelectHandler != null) {
+      this.chart.unsubscribeClick(this.priceSelectHandler);
+      this.priceSelectHandler = null;
     }
-    this.candles.setData(data);
+    if (onPriceSelect) {
+      const newHandler = (param: any) => {
+        const price = this.ohlc?.coordinateToPrice(param.point.y);
+        onPriceSelect(parseFloat(`${price}`));
+      };
+      this.chart.subscribeClick(newHandler);
+      this.priceSelectHandler = newHandler;
+    }
+  }
+
+  setOhlc(data: TChartCandle[]) {
+    if (!this.ohlc) {
+      this.ohlc = this.chart.addCandlestickSeries({
+        upColor: this.colorConfig.buy,
+        downColor: this.colorConfig.sell,
+        borderDownColor: this.colorConfig.sell,
+        borderUpColor: this.colorConfig.buy,
+        wickDownColor: this.colorConfig.sell,
+        wickUpColor: this.colorConfig.buy,
+      });
+    }
+    this.setOhlcData(data);
   }
 
   setPosition(price: number | null) {
-    if (!this.candles) return;
-    if (this.position) this.candles.removePriceLine(this.position);
+    if (this.position) this.ohlc?.removePriceLine(this.position.c);
     if (price != null) {
-      this.candles.setPriceLine(price, this.colorConfig.position);
+      const c = this.setPriceLine(price, this.colorConfig.position);
+      if (c) this.position = { c, d: price };
     }
   }
 
   setOrders(orders: TChartOrder[]) {
+    if (!this.ohlc) return;
     const updOrders = new Map();
     orders.forEach(o => {
-      if (!this.candles) return;
+      if (!this.ohlc) return;
       const existingOrder = this.orders.get(o.id);
-      if (existingOrder) this.orders.delete(o.id);
-      if (!existingOrder) {
-        // add order
-        const pl = this.candles.setPriceLine(
-          o.price,
-          o.size > 0 ? this.colorConfig.buy : this.colorConfig.sell
-        );
-        updOrders.set(o.id, { c: pl, d: o });
-      } else if (existingOrder.d.price !== o.price) {
-        // update order
-        this.candles.removePriceLine(existingOrder.c);
-        const pl = this.candles.setPriceLine(
-          o.price,
-          o.size > 0 ? this.colorConfig.buy : this.colorConfig.sell
-        );
-        updOrders.set(o.id, { c: pl, d: o });
-      } // if exists and prices are the same - do nothing
+      if (existingOrder) {
+        this.removePriceLine(existingOrder.c);
+        this.orders.delete(o.id);
+      }
+      const pl = this.setPriceLine(
+        o.price,
+        o.size > 0 ? this.colorConfig.buy : this.colorConfig.sell,
+        { title: `${o.size}` }
+      );
+      updOrders.set(o.id, { c: pl, d: o });
     });
-    this.orders.forEach(v => this.candles?.removePriceLine(v.c));
+    this.orders.forEach(v => this?.removePriceLine(v.c));
     this.orders = updOrders;
   }
-}
 
-export class OhlcSeries {
-  ohlcSeries: LWC.ISeriesApi<'Candlestick'>;
-  candlesData: LWC.BarData[] = [];
-
-  constructor(chart: ChartOld, colorConfig: TColorConfig) {
-    this.ohlcSeries = chart.chart.addCandlestickSeries({
-      upColor: colorConfig.buy,
-      downColor: colorConfig.sell,
-      borderDownColor: colorConfig.sell,
-      borderUpColor: colorConfig.buy,
-      wickDownColor: colorConfig.sell,
-      wickUpColor: colorConfig.buy,
-    });
+  private setOhlcData(candlesData: TChartCandle[]) {
+    if (!this.ohlc) return;
+    const data = candlesData.map(this.convertOhlcData);
+    this.ohlc.setData(data);
   }
 
-  setData(candlesData: TChartCandle[]) {
-    this.candlesData = candlesData.map(this.convertData);
-    this.ohlcSeries.setData(this.candlesData);
-  }
-
-  setPriceLine(price: number, color: string) {
-    // @ts-ignore
-    return this.ohlcSeries.createPriceLine({
-      price,
-      color: color,
-      lineWidth: 2,
-      lineStyle: LWC.LineStyle.Dashed,
-      axisLabelVisible: true,
-    });
-  }
-
-  removePriceLine(priceLine: LWC.IPriceLine) {
-    this.ohlcSeries.removePriceLine(priceLine);
-  }
-
-  private convertData({ t, o, c, l, h }: TChartCandle): LWC.BarData {
+  private convertOhlcData({ t, o, c, l, h }: TChartCandle): LWC.BarData {
     return {
       // @ts-ignore
       time: t,
@@ -232,5 +144,27 @@ export class OhlcSeries {
       low: l,
       high: h,
     };
+  }
+
+  private setPriceLine(
+    price: number,
+    color: string,
+    options: { title?: string } = {}
+  ) {
+    if (!this.ohlc) return;
+    // @ts-ignore
+    return this.ohlc.createPriceLine({
+      price,
+      color: color,
+      lineWidth: 2,
+      lineStyle: LWC.LineStyle.Dashed,
+      axisLabelVisible: true,
+      ...options,
+    });
+  }
+
+  private removePriceLine(priceLine: LWC.IPriceLine) {
+    if (!this.ohlc) return;
+    this.ohlc.removePriceLine(priceLine);
   }
 }
