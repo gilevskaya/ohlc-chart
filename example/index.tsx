@@ -1,7 +1,12 @@
 import 'react-app-polyfill/ie11';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { createChart, TChartCandle, TChartOrder } from '../dist';
+import {
+  createChart,
+  TChartCandle,
+  TChartOrder,
+  TChartPosition,
+} from '../dist';
 import { ChartOld } from '../dist/tview';
 import { OHLC2 } from './data';
 
@@ -49,7 +54,11 @@ const Input = ({
 const App = () => {
   const [price1, setPrice1] = React.useState<number | null>(null);
   const [price2, setPrice2] = React.useState<number | null>(null);
-  const [position, setPosition] = React.useState<number | null>(13660);
+  const [position, setPosition] = React.useState<TChartPosition | null>({
+    price: 13660,
+    size: 10000,
+  });
+  const [liq, setLiq] = React.useState<number | null>(13610);
   const [orders, setOrders] = React.useState<TChartOrder[]>([
     {
       id: '200-13650',
@@ -73,15 +82,17 @@ const App = () => {
   const priceNumToStr = num => (num == null ? '' : num.toFixed(1));
   const priceStrToNum = str => (str === '' ? null : parseFloat(str));
 
-  React.useEffect(() => {
-    console.log('select', select);
-  }, [select]);
+  // React.useEffect(() => {
+  //   console.log('select', select);
+  // }, [select]);
 
   React.useEffect(() => {
     if (!selectedPrice) return;
     const p = parseFloat(selectedPrice.toFixed(1));
     if (select === 'position') {
-      setPosition(p);
+      setPosition(oldP => (oldP ? { ...oldP, price: p } : null));
+    } else if (select === 'liq') {
+      setLiq(p);
     } else if (select === 'price1') {
       setPrice1(p);
     } else if (select === 'price2') {
@@ -112,12 +123,24 @@ const App = () => {
         />
         <Input
           label="position"
-          value={priceNumToStr(position)}
-          setValue={v => setPosition(priceStrToNum(v))}
+          value={priceNumToStr(position?.price)}
+          setValue={v => {
+            const p = priceStrToNum(v);
+            setPosition(oldP => (oldP && p ? { ...oldP, price: p } : null));
+          }}
           chartSelect={{
             isOn: select === 'position',
             onClick: () =>
               setSelect(s => (s !== 'position' ? 'position' : null)),
+          }}
+        />
+        <Input
+          label="liquidation"
+          value={priceNumToStr(liq)}
+          setValue={v => setLiq(priceStrToNum(v))}
+          chartSelect={{
+            isOn: select === 'liq',
+            onClick: () => setSelect(s => (s !== 'liq' ? 'liq' : null)),
           }}
         />
         <div className="pt-4">
@@ -168,6 +191,7 @@ const App = () => {
             ohlc={OHLC2}
             onChartSelect={setSelectedPrice}
             position={position}
+            liq={liq}
             orders={orders}
             pendingOrder={{ price1, price2 }}
           />
@@ -182,18 +206,22 @@ const Chart2 = React.memo(
     ohlc,
     onChartSelect,
     position,
+    liq,
     orders,
     pendingOrder,
   }: {
     ohlc: TChartCandle[];
     onChartSelect: (number) => void;
-    position: number | null;
+    position: TChartPosition | null;
+    liq: number | null;
     orders: TChartOrder[];
     pendingOrder: { price1: number | null; price2: number | null };
   }) => {
     const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
     const chartRef = React.useRef<ChartOld | null>(null);
     const [loaded, setLoaded] = React.useState(false);
+
+    const [pendingOrders, setPendingOrders] = React.useState([]);
 
     // const indexRef = React.useRef<number>(Math.round(OHLC2.length / 2));
 
@@ -219,14 +247,27 @@ const Chart2 = React.memo(
       setLoaded(true);
     }, [chartContainerRef.current, loaded]);
 
-    // React.useEffect(() => {
-    //   console.log('pendingOrder', pendingOrder);
-    // }, [pendingOrder]);
+    React.useEffect(() => {
+      console.log('pendingOrder', pendingOrder);
+      if (!loaded) return;
+      chartRef.current?.setPendingOrders([
+        {
+          id: `123`,
+          size: 10,
+          price: 13670,
+        },
+      ]);
+    }, [loaded, pendingOrder]);
 
     React.useEffect(() => {
       if (!loaded) return;
       chartRef.current?.setPosition(position);
     }, [loaded, position]);
+
+    React.useEffect(() => {
+      if (!loaded) return;
+      chartRef.current?.setLiquidation(liq);
+    }, [loaded, liq]);
 
     React.useEffect(() => {
       if (!loaded) return;
@@ -237,11 +278,7 @@ const Chart2 = React.memo(
       return (
         <div
           ref={chartContainerRef}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: '1px dashed #333',
-          }}
+          className="w-full h-full border border-lg"
         />
       );
     }, []);

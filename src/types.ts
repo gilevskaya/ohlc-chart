@@ -12,6 +12,11 @@ export type TChartOrder = {
   price: number;
 };
 
+export type TChartPosition = {
+  size: number;
+  price: number;
+};
+
 export type TColorConfig = {
   bg: string;
   grid: string;
@@ -21,8 +26,10 @@ export type TColorConfig = {
   sell: string;
   //
   position: string;
+  liquidation: string;
   orderBuy: string;
   orderSell: string;
+  orderPending: string;
 };
 
 export const COLOR_DEFAULT: TColorConfig = {
@@ -32,6 +39,8 @@ export const COLOR_DEFAULT: TColorConfig = {
   buy: '#22833d',
   sell: '#b82e40',
   position: 'blue',
+  liquidation: '#b82e40',
   orderBuy: '#044516',
   orderSell: '#641C27',
+  orderPending: '#010101',
 };
