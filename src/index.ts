@@ -270,6 +270,7 @@ function c(n: number) {
 export const mult = (a: number, b: number) => a * b;
 
 export * from './types';
+export { ChartOld } from './tview';
 
 class Test {
   constructor() {

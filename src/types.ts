@@ -6,16 +6,23 @@ export type TChartCandle = {
   c: number;
 };
 
-export type TChartOrder = {
-  id: string;
-  size: number; // negarive if sell
-  price: number;
-};
+export enum LineStyle {
+  Solid = 0,
+  Dotted = 1,
+  Dashed = 2,
+  LargeDashed = 3,
+  SparseDotted = 4,
+}
 
-export type TChartPosition = {
-  size: number;
+export type TChartLine = {
   price: number;
-};
+} & Partial<{
+  title: string;
+  color: string;
+  lineWidth: number; // 1 | 2 | 3 | 4;
+  lineStyle: LineStyle;
+  axisLabelVisible: boolean;
+}>;
 
 export type TColorConfig = {
   bg: string;
@@ -24,12 +31,6 @@ export type TColorConfig = {
   //
   buy: string;
   sell: string;
-  //
-  position: string;
-  liquidation: string;
-  orderBuy: string;
-  orderSell: string;
-  orderPending: string;
 };
 
 export const COLOR_DEFAULT: TColorConfig = {
@@ -38,11 +39,6 @@ export const COLOR_DEFAULT: TColorConfig = {
   text: '#adadad',
   buy: '#22833d',
   sell: '#b82e40',
-  position: '#0666b7',
-  liquidation: '#b82e40',
-  orderBuy: '#044516',
-  orderSell: '#48141C',
-  orderPending: '#c8c8c8',
 };
 
 // buy: "#22833D",

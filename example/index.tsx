@@ -4,13 +4,50 @@ import * as ReactDOM from 'react-dom';
 import {
   createChart,
   TChartCandle,
-  TChartOrder,
-  TChartPosition,
+  TChartLine,
+  LineStyle,
+  ChartOld,
 } from '../dist';
-import { ChartOld } from '../dist/tview';
 import { OHLC2 } from './data';
 
 import './index.css';
+
+type TPosition = {
+  price: number;
+  size: number;
+  liq: number;
+};
+
+type TOrder = {
+  id: string;
+  size: number;
+  price: number;
+};
+
+let MOCK = {
+  position: {
+    price: 13660,
+    size: 10000,
+    liq: 13610,
+  },
+  orders: [
+    {
+      id: '200-13650',
+      size: 2000,
+      price: 13650,
+    },
+    {
+      id: '200-13643',
+      size: 200,
+      price: 13643,
+    },
+    {
+      id: '200-13675',
+      size: -400,
+      price: 13705,
+    },
+  ],
+};
 
 const Input = ({
   label,
@@ -52,30 +89,16 @@ const Input = ({
 };
 
 const App = () => {
+  const [position, setPosition] = React.useState<TPosition | null>(
+    MOCK.position
+  );
+  const [openOrders, setOpenOrders] = React.useState(
+    new Map(MOCK.orders.map(o => [o.id, o]))
+  );
+
   const [price1, setPrice1] = React.useState<number | null>(null);
   const [price2, setPrice2] = React.useState<number | null>(null);
-  const [position, setPosition] = React.useState<TChartPosition | null>({
-    price: 13660,
-    size: 10000,
-  });
-  const [liq, setLiq] = React.useState<number | null>(13610);
-  const [orders, setOrders] = React.useState<TChartOrder[]>([
-    {
-      id: '200-13650',
-      size: 200,
-      price: 13650,
-    },
-    {
-      id: '200-13643',
-      size: 200,
-      price: 13643,
-    },
-    {
-      id: '200-13675',
-      size: -400,
-      price: 13705,
-    },
-  ]);
+
   const [select, setSelect] = React.useState<string | null>(null);
   const [selectedPrice, setSelectedPrice] = React.useState<number | null>(null);
 
@@ -93,7 +116,7 @@ const App = () => {
     if (select === 'position') {
       setPosition(oldP => (oldP ? { ...oldP, price: p } : null));
     } else if (select === 'liq') {
-      setLiq(p);
+      setPosition(oldP => (oldP ? { ...oldP, liq: p } : null));
     } else if (select === 'price1') {
       setPrice1(p);
     } else if (select === 'price2') {
@@ -101,7 +124,7 @@ const App = () => {
     }
   }, [selectedPrice]);
 
-  const pendingOrders: Array<Partial<TChartOrder>> = React.useMemo(() => {
+  const pendingOrders: Array<Partial<TOrder>> = React.useMemo(() => {
     if (price1 != null && price2 == null) return [{ price: price1 }];
     if (price1 != null && price2 != null) {
       console.log('calc spray!');
@@ -153,8 +176,11 @@ const App = () => {
         />
         <Input
           label="liquidation"
-          value={priceNumToStr(liq)}
-          setValue={v => setLiq(priceStrToNum(v))}
+          value={priceNumToStr(position?.liq)}
+          setValue={v => {
+            const p = priceStrToNum(v);
+            setPosition(oldP => (oldP && p ? { ...oldP, liq: p } : null));
+          }}
           chartSelect={{
             isOn: select === 'liq',
             onClick: () => setSelect(s => (s !== 'liq' ? 'liq' : null)),
@@ -162,18 +188,17 @@ const App = () => {
         />
         <div className="pt-4">
           <label className="text-xs text-gray-400 mb-1">orders</label>
-          {orders.map((o, i) => (
-            <div className="flex" key={o.id}>
+          {Array.from(openOrders).map(([id, o]) => (
+            <div className="flex" key={id}>
               <div className="mr-1">
                 <Input
                   value={`${o.size}`}
                   setValue={v => {
                     let s = parseInt(v);
-                    setOrders((os: TChartOrder[]) => {
-                      let newOrders = [...os];
-                      if (s) {
-                        newOrders[i] = { ...newOrders[i], size: s };
-                      }
+                    setOpenOrders(os => {
+                      if (!s) return os;
+                      let newOrders = new Map(os);
+                      newOrders.set(id, { ...o, size: s });
                       return newOrders;
                     });
                   }}
@@ -183,11 +208,10 @@ const App = () => {
                 value={priceNumToStr(o.price)}
                 setValue={v => {
                   let p = priceStrToNum(v);
-                  setOrders((os: TChartOrder[]) => {
-                    let newOrders = [...os];
-                    if (p != null) {
-                      newOrders[i] = { ...newOrders[i], price: p };
-                    }
+                  setOpenOrders(os => {
+                    if (!p) return os;
+                    let newOrders = new Map(os);
+                    newOrders.set(id, { ...o, price: p });
                     return newOrders;
                   });
                 }}
@@ -208,9 +232,8 @@ const App = () => {
             ohlc={OHLC2}
             onChartSelect={p => setSelectedPrice(roundTo05(p))}
             position={position}
-            liq={liq}
-            orders={orders}
-            pendingOrders={pendingOrders}
+            openOrders={openOrders}
+            pendingOrders={[]}
           />
         </div>
       </div>
@@ -218,21 +241,32 @@ const App = () => {
   );
 };
 
+const COLOR = {
+  pendingOrder: '#c8c8c8',
+  orderBuy: '#22833D',
+  orderSell: '#B82E40',
+  position: '#0666b7',
+  liquidation: '#b82e40',
+};
+// buy: "#22833D",
+// "buy-dark": "#044516",
+// sell: "#B82E40",
+// "sell-dark": "#48141C",
+// accent: "#0666b7",
+
 const Chart2 = React.memo(
   ({
     ohlc,
     onChartSelect,
     position,
-    liq,
-    orders,
+    openOrders,
     pendingOrders,
   }: {
     ohlc: TChartCandle[];
     onChartSelect: (number) => void;
-    position: TChartPosition | null;
-    liq: number | null;
-    orders: TChartOrder[];
-    pendingOrders: Array<Partial<TChartOrder>>;
+    position: TPosition | null;
+    openOrders: Map<string, TOrder>;
+    pendingOrders: Array<TChartLine>;
   }) => {
     const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
     const chartRef = React.useRef<ChartOld | null>(null);
@@ -257,30 +291,46 @@ const Chart2 = React.memo(
       if (!chartContainerRef.current) return;
       if (loaded) return;
       chartRef.current = createChart(chartContainerRef.current);
-      chartRef.current.setOhlc(ohlc);
+      chartRef.current.setOhlc(ohlc, true);
       chartRef.current.setOnPriceSelect(onChartSelect);
       setLoaded(true);
     }, [chartContainerRef.current, loaded]);
 
     React.useEffect(() => {
-      if (!loaded) return;
-      chartRef.current?.setPendingOrders(pendingOrders);
-    }, [loaded, pendingOrders]);
-
-    React.useEffect(() => {
-      if (!loaded) return;
-      chartRef.current?.setPosition(position);
+      if (!loaded || !chartRef.current) return;
+      let chartPos = (pos: TPosition): TChartLine => ({
+        price: pos.price,
+        title: nf(pos.size),
+        color: COLOR.position,
+      });
+      let chartLiq = (pos: TPosition): TChartLine => ({
+        price: pos.liq,
+        title: 'liquidation',
+        color: COLOR.liquidation,
+        lineWidth: 2,
+      });
+      chartRef.current.setPosition(position ? chartPos(position) : null);
+      chartRef.current?.setLiquidation(position ? chartLiq(position) : null);
     }, [loaded, position]);
 
     React.useEffect(() => {
-      if (!loaded) return;
-      chartRef.current?.setLiquidation(liq);
-    }, [loaded, liq]);
+      if (!loaded || !chartRef.current) return;
+      const chartOrder = (order: TOrder): TChartLine => ({
+        price: order.price,
+        title: nf(order.size),
+        color: order.size > 0 ? COLOR.orderBuy : COLOR.orderSell,
+        lineStyle: LineStyle.Dashed,
+        lineWidth: 2,
+      });
+      chartRef.current.setOpenOrders(
+        new Map(Array.from(openOrders).map(([id, o]) => [id, chartOrder(o)]))
+      );
+    }, [loaded, openOrders]);
 
     React.useEffect(() => {
       if (!loaded) return;
-      chartRef.current?.setOrders(orders);
-    }, [loaded, orders]);
+      chartRef.current?.setPendingOrders(pendingOrders);
+    }, [loaded, pendingOrders]);
 
     return React.useMemo(() => {
       return (
@@ -372,3 +422,8 @@ ReactDOM.render(<App />, document.getElementById('root'));
 //     />
 //   );
 // };
+
+function nf(num: number): string {
+  // new Intl.NumberFormat();
+  return num.toLocaleString('fr-FR');
+}

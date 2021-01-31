@@ -1,12 +1,6 @@
 import * as LWC from 'lightweight-charts';
 
-import {
-  TChartCandle,
-  TColorConfig,
-  TChartOrder,
-  TChartPosition,
-  COLOR_DEFAULT,
-} from './types';
+import { TChartLine, TChartCandle, TColorConfig, COLOR_DEFAULT } from './types';
 
 export class ChartOld {
   width: number;
@@ -15,13 +9,12 @@ export class ChartOld {
   colorConfig: TColorConfig;
   //
   ohlc: LWC.ISeriesApi<'Candlestick'> | null = null;
-  position: { c: LWC.IPriceLine; d: TChartPosition } | null = null;
-  liquidation: { c: LWC.IPriceLine; d: number } | null = null;
-  orders: Map<string, { c: LWC.IPriceLine; d: TChartOrder }> = new Map();
-  pendingOrders: Array<{ c: LWC.IPriceLine; d: Partial<TChartOrder> }> = [];
+  position: LWC.IPriceLine | null = null;
+  liquidation: LWC.IPriceLine | null = null;
+  openOrders: Map<string, LWC.IPriceLine> = new Map();
+  pendingOrders: Array<LWC.IPriceLine> = [];
   //
   priceSelectHandler: null | LWC.MouseEventHandler = null;
-  ordersTitleViz: boolean = false;
 
   constructor(
     wrapperElement: HTMLDivElement,
@@ -97,7 +90,7 @@ export class ChartOld {
     }
   }
 
-  setOhlc(data: TChartCandle[]) {
+  setOhlc(data: TChartCandle[], fitTime: boolean = false) {
     if (!this.ohlc) {
       this.ohlc = this.chart.addCandlestickSeries({
         upColor: this.colorConfig.buy,
@@ -109,81 +102,66 @@ export class ChartOld {
       });
     }
     this.setOhlcData(data);
+    // temp
+    if (fitTime) this.chart.timeScale().fitContent();
   }
 
-  setPosition(position: TChartPosition | null) {
-    if (this.position) this.ohlc?.removePriceLine(this.position.c);
-    if (position != null) {
-      const c = this.setPriceLine(position.price, this.colorConfig.position, {
-        title: `${position.size}`,
-      });
-      if (c) this.position = { c, d: position };
+  setPosition(positionLine: TChartLine | null) {
+    if (this.position) this.ohlc?.removePriceLine(this.position);
+    if (positionLine != null) {
+      this.position = this.setPriceLine(positionLine);
     }
   }
 
-  setLiquidation(price: number | null) {
-    if (this.liquidation) this.ohlc?.removePriceLine(this.liquidation.c);
-    if (price != null) {
-      const c = this.setPriceLine(price, this.colorConfig.liquidation, {
-        title: 'liquidation',
-      });
-      if (c) this.liquidation = { c, d: price };
+  setLiquidation(liqLine: TChartLine | null) {
+    if (this.liquidation) this.ohlc?.removePriceLine(this.liquidation);
+    if (liqLine != null) {
+      this.liquidation = this.setPriceLine(liqLine);
     }
   }
 
-  setOrders(orders: TChartOrder[]) {
-    if (!this.ohlc) return;
+  setOpenOrders(orders: Map<string, TChartLine>) {
+    if (!this.ohlc) {
+      throw new Error('Need to set OHLC first to set open orders');
+    }
     const updOrders = new Map();
-    const oldOrders = this.orders;
-    orders.forEach(o => {
+    const oldOrders = this.openOrders;
+    orders.forEach((oLine, id) => {
       if (!this.ohlc) return;
-      const existingOrder = oldOrders.get(o.id);
+      const existingOrder = oldOrders.get(id);
       if (existingOrder) {
-        this.removePriceLine(existingOrder.c);
-        oldOrders.delete(o.id);
+        this.removePriceLine(existingOrder);
+        oldOrders.delete(id);
       }
-      const color = o.size > 0 ? this.colorConfig.buy : this.colorConfig.sell;
-      const pl = this.setPriceLine(o.price, color, {
-        title: this.ordersTitleViz ? `${o.size}` : '',
-      });
-      updOrders.set(o.id, { c: pl, d: o });
+      const pl = this.setPriceLine(oLine);
+      updOrders.set(id, pl);
     });
-    oldOrders.forEach(v => this?.removePriceLine(v.c));
-    this.orders = updOrders;
+    oldOrders.forEach(v => this?.removePriceLine(v));
+    this.openOrders = updOrders;
   }
 
-  setPendingOrders(pendingOrders: Array<Partial<TChartOrder>>) {
+  // TODO: allow to update individual orders...
+  // updOpenOrders(ordersDiff: Map<string, TChartLine>) {
+  //   console.log('upd orders', ordersDiff);
+  // }
+
+  setPendingOrders(pendingOrders: TChartLine[]) {
     this.pendingOrders.forEach(po => {
-      this.removePriceLine(po.c);
+      this.removePriceLine(po);
     });
     this.pendingOrders = [];
     pendingOrders.forEach(po => {
       if (po.price != null) {
-        const pl = this.setPriceLine(po.price, this.colorConfig.orderPending, {
-          title: po.size != null ? `${po.size}` : '',
-        });
-        this.pendingOrders.push({ c: pl, d: po });
+        const pl = this.setPriceLine(po);
+        this.pendingOrders.push(pl);
       }
     });
   }
 
-  setOrdersTitleViz(isViz: boolean) {
-    if (this.ordersTitleViz === isViz) return;
-    this.ordersTitleViz = isViz;
-
-    Array.from(this.orders).forEach(([_, o]) => {
-      this.removePriceLine(o.c);
-      let pl = this.setPriceLine(
-        o.d.price,
-        o.d.size > 0 ? this.colorConfig.buy : this.colorConfig.sell,
-        { title: isViz ? `${o.d.size}` : '' }
-      );
-      this.orders.set(o.d.id, { c: pl, d: o.d });
-    });
-  }
-
   private setOhlcData(candlesData: TChartCandle[]) {
-    if (!this.ohlc) return;
+    if (!this.ohlc) {
+      throw new Error('Need to set OHLC first to set data');
+    }
     const data = candlesData.map(this.convertOhlcData);
     this.ohlc.setData(data);
   }
@@ -199,19 +177,15 @@ export class ChartOld {
     };
   }
 
-  private setPriceLine(
-    price: number,
-    color: string,
-    options: { title?: string } = {}
-  ): LWC.IPriceLine {
-    if (!this.ohlc)
+  private setPriceLine(options: TChartLine): LWC.IPriceLine {
+    if (!this.ohlc) {
       throw new Error('Need to set OHLC first for the price line');
-    // @ts-ignore
+    }
     return this.ohlc.createPriceLine({
-      price,
-      color: color,
-      lineWidth: 2,
-      lineStyle: LWC.LineStyle.Dashed,
+      color: '#fff',
+      // @ts-ignore
+      lineWidth: 1,
+      lineStyle: LWC.LineStyle.Solid,
       axisLabelVisible: true,
       ...options,
     });
