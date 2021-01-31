@@ -38,9 +38,15 @@ export const COLOR_DEFAULT: TColorConfig = {
   text: '#adadad',
   buy: '#22833d',
   sell: '#b82e40',
-  position: 'blue',
+  position: '#0666b7',
   liquidation: '#b82e40',
   orderBuy: '#044516',
-  orderSell: '#641C27',
-  orderPending: '#010101',
+  orderSell: '#48141C',
+  orderPending: '#c8c8c8',
 };
+
+// buy: "#22833D",
+// "buy-dark": "#044516",
+// sell: "#B82E40",
+// "sell-dark": "#48141C",
+// accent: "#0666b7",

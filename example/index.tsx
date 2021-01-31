@@ -80,11 +80,12 @@ const App = () => {
   const [selectedPrice, setSelectedPrice] = React.useState<number | null>(null);
 
   const priceNumToStr = num => (num == null ? '' : num.toFixed(1));
-  const priceStrToNum = str => (str === '' ? null : parseFloat(str));
-
-  // React.useEffect(() => {
-  //   console.log('select', select);
-  // }, [select]);
+  const roundTo05 = num => Math.round(num * 2) / 2;
+  const priceStrToNum = str => {
+    if (str === '') return null;
+    const fl = parseFloat(str);
+    return fl;
+  };
 
   React.useEffect(() => {
     if (!selectedPrice) return;
@@ -99,6 +100,22 @@ const App = () => {
       setPrice2(p);
     }
   }, [selectedPrice]);
+
+  const pendingOrders: Array<Partial<TChartOrder>> = React.useMemo(() => {
+    if (price1 != null && price2 == null) return [{ price: price1 }];
+    if (price1 != null && price2 != null) {
+      console.log('calc spray!');
+      return [
+        {
+          price: 13670,
+        },
+        {
+          price: 13675,
+        },
+      ];
+    }
+    return [];
+  }, [price1, price2]);
 
   return (
     <div className="h-screen w-full bg-gray-900 text-gray-200 flex">
@@ -189,11 +206,11 @@ const App = () => {
         <div className="flex-1">
           <Chart2
             ohlc={OHLC2}
-            onChartSelect={setSelectedPrice}
+            onChartSelect={p => setSelectedPrice(roundTo05(p))}
             position={position}
             liq={liq}
             orders={orders}
-            pendingOrder={{ price1, price2 }}
+            pendingOrders={pendingOrders}
           />
         </div>
       </div>
@@ -208,20 +225,18 @@ const Chart2 = React.memo(
     position,
     liq,
     orders,
-    pendingOrder,
+    pendingOrders,
   }: {
     ohlc: TChartCandle[];
     onChartSelect: (number) => void;
     position: TChartPosition | null;
     liq: number | null;
     orders: TChartOrder[];
-    pendingOrder: { price1: number | null; price2: number | null };
+    pendingOrders: Array<Partial<TChartOrder>>;
   }) => {
     const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
     const chartRef = React.useRef<ChartOld | null>(null);
     const [loaded, setLoaded] = React.useState(false);
-
-    const [pendingOrders, setPendingOrders] = React.useState([]);
 
     // const indexRef = React.useRef<number>(Math.round(OHLC2.length / 2));
 
@@ -248,16 +263,9 @@ const Chart2 = React.memo(
     }, [chartContainerRef.current, loaded]);
 
     React.useEffect(() => {
-      console.log('pendingOrder', pendingOrder);
       if (!loaded) return;
-      chartRef.current?.setPendingOrders([
-        {
-          id: `123`,
-          size: 10,
-          price: 13670,
-        },
-      ]);
-    }, [loaded, pendingOrder]);
+      chartRef.current?.setPendingOrders(pendingOrders);
+    }, [loaded, pendingOrders]);
 
     React.useEffect(() => {
       if (!loaded) return;

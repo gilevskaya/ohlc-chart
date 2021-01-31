@@ -18,6 +18,7 @@ export class ChartOld {
   position: { c: LWC.IPriceLine; d: TChartPosition } | null = null;
   liquidation: { c: LWC.IPriceLine; d: number } | null = null;
   orders: Map<string, { c: LWC.IPriceLine; d: TChartOrder }> = new Map();
+  pendingOrders: Array<{ c: LWC.IPriceLine; d: Partial<TChartOrder> }> = [];
   //
   priceSelectHandler: null | LWC.MouseEventHandler = null;
   ordersTitleViz: boolean = false;
@@ -130,30 +131,40 @@ export class ChartOld {
     }
   }
 
-  setOrders(orders: TChartOrder[], isPending: boolean = false) {
+  setOrders(orders: TChartOrder[]) {
     if (!this.ohlc) return;
     const updOrders = new Map();
+    const oldOrders = this.orders;
     orders.forEach(o => {
       if (!this.ohlc) return;
-      const existingOrder = this.orders.get(o.id);
+      const existingOrder = oldOrders.get(o.id);
       if (existingOrder) {
         this.removePriceLine(existingOrder.c);
-        this.orders.delete(o.id);
+        oldOrders.delete(o.id);
       }
       const color = o.size > 0 ? this.colorConfig.buy : this.colorConfig.sell;
-      const pl = this.setPriceLine(
-        o.price,
-        isPending ? this.colorConfig.orderPending : color,
-        { title: this.ordersTitleViz ? `${o.size}` : '' }
-      );
+      const pl = this.setPriceLine(o.price, color, {
+        title: this.ordersTitleViz ? `${o.size}` : '',
+      });
       updOrders.set(o.id, { c: pl, d: o });
     });
-    this.orders.forEach(v => this?.removePriceLine(v.c));
+    oldOrders.forEach(v => this?.removePriceLine(v.c));
     this.orders = updOrders;
   }
 
-  setPendingOrders(pendingOrders: TChartOrder[]) {
-    this.setOrders(pendingOrders, true);
+  setPendingOrders(pendingOrders: Array<Partial<TChartOrder>>) {
+    this.pendingOrders.forEach(po => {
+      this.removePriceLine(po.c);
+    });
+    this.pendingOrders = [];
+    pendingOrders.forEach(po => {
+      if (po.price != null) {
+        const pl = this.setPriceLine(po.price, this.colorConfig.orderPending, {
+          title: po.size != null ? `${po.size}` : '',
+        });
+        this.pendingOrders.push({ c: pl, d: po });
+      }
+    });
   }
 
   setOrdersTitleViz(isViz: boolean) {
@@ -167,7 +178,6 @@ export class ChartOld {
         o.d.size > 0 ? this.colorConfig.buy : this.colorConfig.sell,
         { title: isViz ? `${o.d.size}` : '' }
       );
-      if (!pl) return;
       this.orders.set(o.d.id, { c: pl, d: o.d });
     });
   }
@@ -193,8 +203,9 @@ export class ChartOld {
     price: number,
     color: string,
     options: { title?: string } = {}
-  ) {
-    if (!this.ohlc) return;
+  ): LWC.IPriceLine {
+    if (!this.ohlc)
+      throw new Error('Need to set OHLC first for the price line');
     // @ts-ignore
     return this.ohlc.createPriceLine({
       price,
