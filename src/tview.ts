@@ -90,7 +90,7 @@ export class ChartOld {
     }
   }
 
-  setOhlc(data: TChartCandle[], fitTime: boolean = false) {
+  setCandles(candles: TChartCandle[], fitTime: boolean = false) {
     if (!this.ohlc) {
       this.ohlc = this.chart.addCandlestickSeries({
         upColor: this.colorConfig.buy,
@@ -101,9 +101,16 @@ export class ChartOld {
         wickUpColor: this.colorConfig.buy,
       });
     }
-    this.setOhlcData(data);
+    this.ohlc.setData(candles.map(this.convertOhlcData));
     // temp
     if (fitTime) this.chart.timeScale().fitContent();
+  }
+
+  updCandle(candle: TChartCandle) {
+    if (!this.ohlc) {
+      throw new Error('Need to set OHLC first to update it');
+    }
+    this.ohlc.update(this.convertOhlcData(candle));
   }
 
   setPosition(positionLine: TChartLine | null) {
@@ -156,14 +163,6 @@ export class ChartOld {
         this.pendingOrders.push(pl);
       }
     });
-  }
-
-  private setOhlcData(candlesData: TChartCandle[]) {
-    if (!this.ohlc) {
-      throw new Error('Need to set OHLC first to set data');
-    }
-    const data = candlesData.map(this.convertOhlcData);
-    this.ohlc.setData(data);
   }
 
   private convertOhlcData({ t, o, c, l, h }: TChartCandle): LWC.BarData {

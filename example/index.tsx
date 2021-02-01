@@ -272,26 +272,25 @@ const Chart2 = React.memo(
     const chartRef = React.useRef<ChartOld | null>(null);
     const [loaded, setLoaded] = React.useState(false);
 
-    // const indexRef = React.useRef<number>(Math.round(OHLC2.length / 2));
-
-    // React.useEffect(() => {
-    //   const interval = setInterval(() => {
-    //     if (!ohlcSeriesRef.current) return;
-    //     if (indexRef.current >= OHLC2.length) {
-    //       clearInterval(interval);
-    //       return;
-    //     }
-    //     ohlcSeriesRef.current.addLastCandle(OHLC2[indexRef.current]);
-    //     indexRef.current++;
-    //   }, 2000);
-    //   return () => clearInterval(interval);
-    // }, []);
+    const indexRef = React.useRef<number>(Math.round(ohlc.length - 10));
 
     React.useEffect(() => {
-      if (!chartContainerRef.current) return;
-      if (loaded) return;
+      if (!loaded || !chartRef.current) return;
+      const interval = setInterval(() => {
+        if (indexRef.current >= ohlc.length) {
+          clearInterval(interval);
+          return;
+        }
+        chartRef.current?.updCandle(ohlc[indexRef.current]);
+        indexRef.current++;
+      }, 2000);
+      return () => clearInterval(interval);
+    }, [chartContainerRef.current, loaded]);
+
+    React.useEffect(() => {
+      if (!chartContainerRef.current || loaded) return;
       chartRef.current = createChart(chartContainerRef.current);
-      chartRef.current.setOhlc(ohlc, true);
+      chartRef.current.setCandles(ohlc.slice(0, indexRef.current), true);
       chartRef.current.setOnPriceSelect(onChartSelect);
       setLoaded(true);
     }, [chartContainerRef.current, loaded]);
