@@ -24,9 +24,16 @@ type TOrder = {
   price: number;
 };
 
+type TPendingOrder = {
+  price: number;
+  size?: number | null;
+  isValid?: boolean;
+};
+
 let MOCK = {
+  size: 10000,
   position: {
-    price: 13660,
+    price: 13660.45,
     size: 10000,
     liq: 13610,
   },
@@ -88,6 +95,20 @@ const Input = ({
   );
 };
 
+const numToStr = (
+  num: null | undefined | number,
+  opt: { maxFrDigits?: number; useGrouping?: boolean } = {}
+): string => {
+  if (num == null) return '';
+  const a = num
+    .toLocaleString('fr-FR', {
+      useGrouping: opt.useGrouping ?? false,
+      maximumFractionDigits: opt.maxFrDigits ?? 4,
+    })
+    .replace(/,/i, '.');
+  return a;
+};
+
 const App = () => {
   const [position, setPosition] = React.useState<TPosition | null>(
     MOCK.position
@@ -95,14 +116,14 @@ const App = () => {
   const [openOrders, setOpenOrders] = React.useState(
     new Map(MOCK.orders.map(o => [o.id, o]))
   );
-
+  const [size, setSize] = React.useState<number | null>(MOCK.size);
+  const [sprayCount, setsSprayCount] = React.useState<number | null>(null);
   const [price1, setPrice1] = React.useState<number | null>(null);
   const [price2, setPrice2] = React.useState<number | null>(null);
 
   const [select, setSelect] = React.useState<string | null>(null);
   const [selectedPrice, setSelectedPrice] = React.useState<number | null>(null);
 
-  const priceNumToStr = num => (num == null ? '' : num.toFixed(1));
   const roundTo05 = num => Math.round(num * 2) / 2;
   const priceStrToNum = str => {
     if (str === '') return null;
@@ -124,28 +145,76 @@ const App = () => {
     }
   }, [selectedPrice]);
 
-  const pendingOrders: Array<Partial<TOrder>> = React.useMemo(() => {
-    if (price1 != null && price2 == null) return [{ price: price1 }];
-    if (price1 != null && price2 != null) {
-      console.log('calc spray!');
-      return [
-        {
-          price: 13670,
-        },
-        {
-          price: 13675,
-        },
-      ];
+  const pendingOrders: Array<TPendingOrder> = React.useMemo(() => {
+    const isSizePosN = size != null && size > 0;
+    if (price1 != null && price1 > 0 && price2 != null && price2 > 0) {
+      if (sprayCount != null && sprayCount > 1) {
+        let sprayOrders: Array<TPendingOrder> = [];
+        let currPrice = Math.min(price1, price2);
+        let maxPrice = Math.max(price1, price2);
+        const stepPrice = (maxPrice - currPrice) / (sprayCount - 1);
+        for (let i = 0; i < sprayCount; i++) {
+          if (i === sprayCount - 1)
+            sprayOrders.push({
+              price: maxPrice,
+              size,
+              isValid: isSizePosN,
+            });
+          else
+            sprayOrders.push({
+              price: currPrice,
+              size,
+              isValid: isSizePosN,
+            });
+          currPrice += stepPrice;
+        }
+        return sprayOrders;
+      } else {
+        return [
+          {
+            price: price1,
+            size,
+            isValid: false,
+          },
+          {
+            price: price2,
+            size,
+            isValid: false,
+          },
+        ];
+      }
+    }
+    if (price1 != null && price1 > 0) {
+      return [{ price: price1, size, isValid: isSizePosN }];
+    }
+    if (price2 != null && price2 > 0) {
+      return [{ price: price2, size, isValid: false }];
     }
     return [];
-  }, [price1, price2]);
+  }, [price1, price2, size, sprayCount]);
 
   return (
     <div className="h-screen w-full bg-gray-900 text-gray-200 flex">
       <div className="p-3 h-full" style={{ width: '230px' }}>
+        <div className="flex">
+          <div className="flex-1 mr-1">
+            <Input
+              label="size"
+              value={numToStr(size, { maxFrDigits: 0 })}
+              setValue={v => setSize(priceStrToNum(v))}
+            />
+          </div>
+          <div className="flex-1 ml-1">
+            <Input
+              label="spray count"
+              value={numToStr(sprayCount, { maxFrDigits: 0 })}
+              setValue={v => setsSprayCount(priceStrToNum(v))}
+            />
+          </div>
+        </div>
         <Input
           label="price 1"
-          value={priceNumToStr(price1)}
+          value={numToStr(price1, { maxFrDigits: 1, useGrouping: false })}
           setValue={v => setPrice1(priceStrToNum(v))}
           chartSelect={{
             isOn: select === 'price1',
@@ -154,7 +223,7 @@ const App = () => {
         />
         <Input
           label="price 2"
-          value={priceNumToStr(price2)}
+          value={numToStr(price2)}
           setValue={v => setPrice2(priceStrToNum(v))}
           chartSelect={{
             isOn: select === 'price2',
@@ -163,7 +232,7 @@ const App = () => {
         />
         <Input
           label="position"
-          value={priceNumToStr(position?.price)}
+          value={numToStr(position?.price)}
           setValue={v => {
             const p = priceStrToNum(v);
             setPosition(oldP => (oldP && p ? { ...oldP, price: p } : null));
@@ -176,7 +245,7 @@ const App = () => {
         />
         <Input
           label="liquidation"
-          value={priceNumToStr(position?.liq)}
+          value={numToStr(position?.liq)}
           setValue={v => {
             const p = priceStrToNum(v);
             setPosition(oldP => (oldP && p ? { ...oldP, liq: p } : null));
@@ -205,7 +274,7 @@ const App = () => {
                 />
               </div>
               <Input
-                value={priceNumToStr(o.price)}
+                value={numToStr(o.price)}
                 setValue={v => {
                   let p = priceStrToNum(v);
                   setOpenOrders(os => {
@@ -233,7 +302,7 @@ const App = () => {
             onChartSelect={p => setSelectedPrice(roundTo05(p))}
             position={position}
             openOrders={openOrders}
-            pendingOrders={[]}
+            pendingOrders={pendingOrders}
           />
         </div>
       </div>
@@ -243,6 +312,7 @@ const App = () => {
 
 const COLOR = {
   pendingOrder: '#c8c8c8',
+  pendingOrderInvalid: '#989898',
   orderBuy: '#22833D',
   orderSell: '#B82E40',
   position: '#0666b7',
@@ -266,7 +336,7 @@ const Chart2 = React.memo(
     onChartSelect: (number) => void;
     position: TPosition | null;
     openOrders: Map<string, TOrder>;
-    pendingOrders: Array<TChartLine>;
+    pendingOrders: Array<TPendingOrder>;
   }) => {
     const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
     const chartRef = React.useRef<ChartOld | null>(null);
@@ -299,7 +369,7 @@ const Chart2 = React.memo(
       if (!loaded || !chartRef.current) return;
       let chartPos = (pos: TPosition): TChartLine => ({
         price: pos.price,
-        title: nf(pos.size),
+        title: numToStr(pos.size, { useGrouping: true }),
         color: COLOR.position,
       });
       let chartLiq = (pos: TPosition): TChartLine => ({
@@ -316,7 +386,7 @@ const Chart2 = React.memo(
       if (!loaded || !chartRef.current) return;
       const chartOrder = (order: TOrder): TChartLine => ({
         price: order.price,
-        title: nf(order.size),
+        title: numToStr(order.size, { useGrouping: true }),
         color: order.size > 0 ? COLOR.orderBuy : COLOR.orderSell,
         lineStyle: LineStyle.Dashed,
         lineWidth: 2,
@@ -328,7 +398,15 @@ const Chart2 = React.memo(
 
     React.useEffect(() => {
       if (!loaded) return;
-      chartRef.current?.setPendingOrders(pendingOrders);
+      chartRef.current?.setPendingOrders(
+        pendingOrders.map(po => ({
+          price: po.price,
+          title: numToStr(po.size, { useGrouping: true }),
+          color: po.isValid ? COLOR.pendingOrder : COLOR.pendingOrderInvalid,
+          lineStyle: LineStyle.Dashed,
+          lineWidth: 2,
+        }))
+      );
     }, [loaded, pendingOrders]);
 
     return React.useMemo(() => {
@@ -421,8 +499,3 @@ ReactDOM.render(<App />, document.getElementById('root'));
 //     />
 //   );
 // };
-
-function nf(num: number): string {
-  // new Intl.NumberFormat();
-  return num.toLocaleString('fr-FR');
-}
