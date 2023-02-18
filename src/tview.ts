@@ -40,7 +40,10 @@ export class ChartOld {
         mode: LWC.CrosshairMode.Normal,
       },
       layout: {
-        backgroundColor: this.colorConfig.bg,
+        background: {
+          color: this.colorConfig.bg,
+          type: LWC.ColorType.Solid,
+        },
         textColor: this.colorConfig.text,
       },
       grid: {
@@ -53,7 +56,7 @@ export class ChartOld {
       },
       rightPriceScale: {
         borderColor: this.colorConfig.grid,
-        drawTicks: false,
+        ticksVisible: false,
       },
       timeScale: {
         borderColor: this.colorConfig.grid,
